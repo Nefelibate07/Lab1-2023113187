@@ -1,10 +1,20 @@
-import re
-import random
+"""Lab1 text graph analysis program.
+
+This module loads a text file, builds a directed weighted graph, and provides
+functions for showing the graph, querying bridge words, generating new text,
+calculating shortest paths, computing PageRank, and performing random walks.
+"""
+
 import heapq
+import random
+import re
 from collections import defaultdict
 
 class TextGraphLab:
+    """Text graph analysis tool based on a directed weighted graph."""
+
     def __init__(self):
+        """Initialize the graph structure and helper data."""
         # graph[from_word][to_word] = weight
         self.graph = defaultdict(lambda: defaultdict(int))
         self.words = []
@@ -15,31 +25,21 @@ class TextGraphLab:
     # 基础：读取文件、预处理、建图
     # =========================
     def load_file(self, file_path: str):
-        """
-        从文本文件读取内容，预处理后构建有向图
-        """
+        """Read a text file, preprocess it, and build the graph."""
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
         self.words = self.tokenize(text)
         self.build_graph(self.words)
 
     def tokenize(self, text: str):
-        """
-        文本预处理规则：
-        1. 全部转小写
-        2. 非字母字符全部替换为空格
-        3. 按空白分词
-        """
+        """Tokenize text by lowercasing and replacing non-letters with spaces."""
         text = text.lower()
         text = re.sub(r"[^a-zA-Z]+", " ", text)
         words = text.split()
         return words
 
     def build_graph(self, words):
-        """
-        构建有向图：
-        如果 a 后面跟着 b，则建立 a -> b，权重 +1
-        """
+        """Build a directed weighted graph from the word list."""
         self.graph.clear()
         self.nodes.clear()
 
@@ -51,23 +51,21 @@ class TextGraphLab:
             b = words[i + 1]
             self.graph[a][b] += 1
 
-        # 保证所有节点都在 nodes 中，即使没有出边
+        # Ensure all nodes exist in graph even if they have no outgoing edges.
         for w in words:
             _ = self.graph[w]
 
     def has_word(self, word: str) -> bool:
+        """Check whether a word exists in the graph."""
         return word in self.nodes
 
     # =========================
     # 功能1：展示有向图
     # =========================
-    def showDirectedGraph(self, G=None, export_dot_path=None):
-        """
-        以文本形式展示图结构
-        如果提供 export_dot_path，则导出 dot 文件
-        """
-        if G is None:
-            G = self.graph
+    def show_directed_graph(self, g=None, export_dot_path=None):
+        """Display the directed graph and optionally export it to DOT."""
+        if g is None:
+            g = self.graph
 
         if not self.nodes:
             print("图为空，请先加载文本文件。")
@@ -75,7 +73,7 @@ class TextGraphLab:
 
         print("\n========== Directed Graph ==========")
         for node in sorted(self.nodes):
-            neighbors = G.get(node, {})
+            neighbors = g.get(node, {})
             if neighbors:
                 edge_str = ", ".join(
                     f"{to}({weight})" for to, weight in sorted(neighbors.items())
@@ -92,9 +90,7 @@ class TextGraphLab:
             print(f'  dot -Tpng "{export_dot_path}" -o graph.png')
 
     def export_to_dot(self, dot_path: str):
-        """
-        导出 Graphviz DOT 文件
-        """
+        """Export the graph to a Graphviz DOT file."""
         with open(dot_path, "w", encoding="utf-8") as f:
             f.write("digraph TextGraph {\n")
             f.write('    rankdir=LR;\n')
@@ -110,10 +106,7 @@ class TextGraphLab:
     # 功能2：查询桥接词
     # =========================
     def get_bridge_words_list(self, word1: str, word2: str):
-        """
-        返回 word1 和 word2 之间的所有桥接词列表
-        桥接词定义：word1 -> bridge 且 bridge -> word2
-        """
+        """Return all bridge words between word1 and word2."""
         word1 = word1.lower()
         word2 = word2.lower()
 
@@ -126,7 +119,8 @@ class TextGraphLab:
                 bridges.append(mid)
         return bridges
 
-    def queryBridgeWords(self, word1: str, word2: str) -> str:
+    def query_bridge_words(self, word1: str, word2: str) -> str:
+        """Query bridge words between two words."""
         word1 = word1.lower()
         word2 = word2.lower()
 
@@ -146,18 +140,16 @@ class TextGraphLab:
 
         if len(bridges) == 1:
             return f'The bridge word from "{word1}" to "{word2}" is: {bridges[0]}.'
-        else:
-            bridge_str = ", ".join(bridges[:-1]) + " and " + bridges[-1]
-            return f'The bridge words from "{word1}" to "{word2}" are: {bridge_str}.'
+
+        bridge_str = ", ".join(bridges[:-1]) + " and " + bridges[-1]
+        return f'The bridge words from "{word1}" to "{word2}" are: {bridge_str}.'
 
     # =========================
     # 功能3：生成新文本
     # =========================
-    def generateNewText(self, inputText: str) -> str:
-        """
-        对输入文本的每对相邻单词，若存在桥接词，则随机插入一个桥接词
-        """
-        raw_words = self.tokenize(inputText)
+    def generate_new_text(self, input_text: str) -> str:
+        """Generate new text by randomly inserting bridge words."""
+        raw_words = self.tokenize(input_text)
         if len(raw_words) <= 1:
             return " ".join(raw_words)
 
@@ -179,10 +171,7 @@ class TextGraphLab:
     # 功能4：最短路径
     # =========================
     def _dijkstra(self, start: str):
-        """
-        从 start 出发，计算到所有节点的最短距离
-        边权就是图中的权重（出现次数）
-        """
+        """Compute shortest distances from start using Dijkstra's algorithm."""
         dist = {node: float("inf") for node in self.nodes}
         prev = {node: None for node in self.nodes}
         dist[start] = 0
@@ -204,6 +193,7 @@ class TextGraphLab:
         return dist, prev
 
     def _reconstruct_path(self, prev, start, end):
+        """Reconstruct path from start to end using predecessor map."""
         if start == end:
             return [start]
         if prev[end] is None:
@@ -220,11 +210,8 @@ class TextGraphLab:
             return None
         return path
 
-    def calcShortestPath(self, word1: str, word2: str = None) -> str:
-        """
-        1. 如果输入两个单词：计算二者最短路径
-        2. 如果只输入一个单词：计算该词到其他所有可达单词的最短路径
-        """
+    def calc_shortest_path(self, word1: str, word2: str = None) -> str:
+        """Calculate shortest path(s) from one word to another or to all words."""
         word1 = word1.lower()
 
         if not self.has_word(word1):
@@ -232,7 +219,6 @@ class TextGraphLab:
 
         dist, prev = self._dijkstra(word1)
 
-        # 只输入一个单词：到所有点的最短路径
         if word2 is None or word2.strip() == "":
             lines = [f'Shortest paths from "{word1}":']
             reachable = False
@@ -264,11 +250,8 @@ class TextGraphLab:
     # =========================
     # 功能5：PageRank
     # =========================
-    def calPageRank(self, word: str, d: float = 0.85, max_iter: int = 100, tol: float = 1e-6):
-        """
-        计算指定单词的 PageRank
-        处理悬挂节点（无出边）时，将其 PR 均匀分配给所有节点
-        """
+    def calc_page_rank(self, word: str, d: float = 0.85, max_iter: int = 100, tol: float = 1e-6):
+        """Calculate PageRank for a specific word."""
         word = word.lower()
         if not self.has_word(word):
             return None
@@ -283,11 +266,9 @@ class TextGraphLab:
         for _ in range(max_iter):
             new_pr = {node: (1 - d) / n for node in nodes}
 
-            # 处理每个节点对其他节点的贡献
             for u in nodes:
                 out_neighbors = self.graph[u]
                 if len(out_neighbors) == 0:
-                    # 悬挂节点：平均分给所有节点
                     share = d * pr[u] / n
                     for v in nodes:
                         new_pr[v] += share
@@ -305,9 +286,7 @@ class TextGraphLab:
         return pr[word]
 
     def get_all_pagerank(self, d: float = 0.85, max_iter: int = 100, tol: float = 1e-6):
-        """
-        返回所有节点的 PageRank
-        """
+        """Return PageRank values for all nodes."""
         nodes = sorted(self.nodes)
         n = len(nodes)
         if n == 0:
@@ -340,13 +319,8 @@ class TextGraphLab:
     # =========================
     # 功能6：随机游走
     # =========================
-    def randomWalk(self, save_path="random_walk.txt") -> str:
-        """
-        从随机节点开始随机游走。
-        停止条件：
-        1. 当前节点没有出边
-        2. 即将走一条已走过的边
-        """
+    def random_walk(self, save_path="random_walk.txt") -> str:
+        """Perform a random walk on the graph and save the result."""
         if not self.nodes:
             return "图为空，请先加载文本文件。"
 
@@ -378,7 +352,9 @@ class TextGraphLab:
         return result
 
 def print_menu():
-    print("""
+    """Print the main menu."""
+    print(
+        """
 ================= Lab1 Menu =================
 1. Load text file and build graph
 2. Show directed graph
@@ -391,9 +367,11 @@ def print_menu():
 9. Show all PageRank values
 0. Exit
 =============================================
-""")
+"""
+    )
 
 def main():
+    """Program entry point."""
     app = TextGraphLab()
 
     while True:
@@ -409,41 +387,38 @@ def main():
                 print(f"节点数: {len(app.nodes)}")
                 edge_count = sum(len(v) for v in app.graph.values())
                 print(f"边数: {edge_count}")
-            except Exception as e:
+            except (FileNotFoundError, OSError) as e:
                 print(f"加载失败: {e}")
 
         elif choice == "2":
-            app.showDirectedGraph()
+            app.show_directed_graph()
 
         elif choice == "3":
             word1 = input("请输入第一个单词: ").strip()
             word2 = input("请输入第二个单词: ").strip()
-            print(app.queryBridgeWords(word1, word2))
+            print(app.query_bridge_words(word1, word2))
 
         elif choice == "4":
             text = input("请输入一段新文本: ").strip()
-            new_text = app.generateNewText(text)
+            new_text = app.generate_new_text(text)
             print("生成的新文本：")
             print(new_text)
 
         elif choice == "5":
             word1 = input("请输入起点单词: ").strip()
             word2 = input("请输入终点单词（若留空则计算到所有点）: ").strip()
-            if word2 == "":
-                print(app.calcShortestPath(word1))
-            else:
-                print(app.calcShortestPath(word1, word2))
+            print(app.calc_shortest_path(word1, word2 if word2 else None))
 
         elif choice == "6":
             word = input("请输入要查询 PageRank 的单词: ").strip()
-            pr = app.calPageRank(word)
+            pr = app.calc_page_rank(word)
             if pr is None:
                 print(f'No "{word}" in the graph!')
             else:
                 print(f'PageRank("{word}") = {pr:.6f}')
 
         elif choice == "7":
-            result = app.randomWalk()
+            result = app.random_walk()
             print("随机游走结果：")
             print(result)
             print("已保存到 random_walk.txt")
@@ -456,7 +431,7 @@ def main():
                 app.export_to_dot(dot_path)
                 print(f"DOT 文件已导出到: {dot_path}")
                 print(f'可执行: dot -Tpng "{dot_path}" -o graph.png')
-            except Exception as e:
+            except (FileNotFoundError, OSError) as e:
                 print(f"导出失败: {e}")
 
         elif choice == "9":
